@@ -5,7 +5,7 @@ api_key = API_KEY
 config_list = [
     {
         'model': 'gpt-4-1106-preview',
-        'api_key': {api_key},
+        'api_key': api_key,
     }
 ]
 # User Proxy
