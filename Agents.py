@@ -1,21 +1,23 @@
 import autogen
 from env import API_KEY
-api_key = API_KEY
+import re
+import ast
 
 config_list = [
     {
         'model': 'gpt-4-1106-preview',
-        'api_key': api_key,
+        'api_key': API_KEY,
     }
 ]
+
 # User Proxy
 user_proxy = autogen.UserProxyAgent(
     name="user_proxy",
     human_input_mode="NEVER",
     llm_config={
-        "cache_seed": 42,  # seed for caching and reproducibility
-        "config_list": config_list,  # a list of OpenAI API configurations
-        "temperature": 0,  # temperature for sampling
+        "cache_seed": 42,
+        "config_list": config_list,
+        "temperature": 0,
     },
     max_consecutive_auto_reply=1,
     is_termination_msg=lambda x: x.get(
@@ -35,11 +37,11 @@ user_proxy = autogen.UserProxyAgent(
     "card_putdown": "BLUE 3"
     [END]
      
-    If you receive this, then reply "TASK COMPLETED TO FULL SATISFACTION. TERMINATE DISCUSSION" and terminate the conversation to not waste any more time. 
+    If you receive this, then reply "TASK COMPLETED TO FULL SATISFACTION. TERMINATE DISCUSSION" and terminate the conversation immediately. Do not exchange pleasantries.  
     Else, tell the assistant that you need their response in that format. 
     """)
 
-# Player
+# Agent (Player)
 player_agent = autogen.ConversableAgent(
     name="assistant",
     llm_config={
@@ -50,11 +52,11 @@ player_agent = autogen.ConversableAgent(
 )
 
 
-def performActionAgent(current_player, top_card, agent_hand):
+def performActionAgent(current_player, top_card):
     user_proxy.initiate_chat(
         current_player.agent,
         message=f'''
-        [Persona]: Your name is {current_player.name}. You are a helpful assistant who does not make errors. Your job is to give advice on the best next move in UNO. \n
+        [Persona]: Your name is {current_player.name}. You are an efficient assistant who does not make errors. Your job is to give advice on the best next move in UNO. \n
         You will be given instructions below. Talk through and think out loud for each instruction. 
         [Your Instructions]:
             Step 1 - Ensure that you know the rules of UNO. However, also note that this version has no Plus2, Plus4, or Wildcards. Also, you cannot put down a card after picking it up. Hence, picking up a card ends your turn. 
@@ -80,41 +82,32 @@ def performActionAgent(current_player, top_card, agent_hand):
     
     [Information]:
     Top Card: {top_card} \n
-    Your Hand: {agent_hand} \n
+    Your Hand: {current_player.hand} \n
     
     [Special Instruction]:
-    If you receive "TASK COMPLETED TO FULL SATISFACTION", then terminate the conversation and do not waste any more time.
+    If you receive "TASK COMPLETED TO FULL SATISFACTION", then terminate the conversation immediately. Do not exchange pleasantries. 
     Let's think step by step.
     ''',
     )
 
-    #print(player_agent.chat_messages)
-
-    key = list(player_agent.chat_messages.keys())[0]
-    chatlog = player_agent.chat_messages[key]
+    chatlog = player_agent.chat_messages[list(
+        player_agent.chat_messages.keys())[0]]
 
     full_text = ''
     for chat in chatlog:
         full_text += chat['content'] + ' '
-    import re
 
     pattern = r'\[START\](.*?)\[END\]'
-
     matches = re.findall(pattern, full_text, re.DOTALL)
     action = matches[-1].strip()
     action = "{" + action + "}"
     action = re.sub('\n', '', action)
-
-    import ast
     action = ast.literal_eval(action)
 
-    #print(action)
     card_pickup = action['card_pickup']
     card_putdown = action['card_putdown']
-    
-    return card_pickup, card_putdown, action
 
-######################################
+    return card_pickup, card_putdown, action
 
 
 class player:
@@ -147,7 +140,6 @@ Jack = player(
 
     agent=player_agent
 )
-
 
 Kenzo = player(
     name="Kenzo",
